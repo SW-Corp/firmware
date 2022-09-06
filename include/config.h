@@ -1,4 +1,21 @@
-#pragma once
+#ifndef config_h
+#define config_h
+
+#include <avr/io.h>
+#include <avr/pgmspace.h>
+#include <avr/interrupt.h>
+#include <avr/wdt.h>
+
+#include <INA219_WE.h>
+#include <BMP280_DEV.h>
+
+#define BAUD_RATE 115200
+
+// Define serial port pins and interrupt vectors.
+#define SERIAL_RX     USART_RX_vect
+#define SERIAL_UDRE   USART_UDRE_vect
+
+#define LINE_BUFFER_SIZE 20
 
 /* 
  * Definitions of pins for automatic control. 
@@ -39,36 +56,44 @@
 
 typedef struct  {
     uint8_t AC_PIN; // pin for automatic control
-    uint8_t INA_ADDR;     
+    INA219_WE INA_SENSOR;     
     uint8_t CORRESPONDING_FS;
 } component;
 
 typedef struct {
     uint8_t TCA_SLOT;
     uint8_t I2C_ADDR;
-    char* container;
+    BMP280_DEV device;
+    char container[4];
 } pressure_sensor;
+
+typedef struct status {
+    uint8_t code;
+    char message[22];
+} status_t;
 
 /*
  * Components definitions
  */
 
-component P1 = {PIN_P1, P1_INA_ADDR, FS_C2};
-component P2 = {PIN_P2, P2_INA_ADDR, FS_C3};
-component P3 = {PIN_P3, P3_INA_ADDR, FS_C4};
-component P4 = {PIN_P4, P4_INA_ADDR, FS_C1};
-component V1 = {PIN_V1, V1_INA_ADDR, FS_C5};
-component V2 = {PIN_V2, V2_INA_ADDR, FS_C5};
-component V3 = {PIN_V3, V3_INA_ADDR, FS_C5};
+extern component P1; // = {PIN_P1, INA219_WE(P1_INA_ADDR), FS_C2};
+extern component P2; // = {PIN_P2, INA219_WE(P2_INA_ADDR), FS_C3};
+extern component P3; // = {PIN_P3, INA219_WE(P3_INA_ADDR), FS_C4};
+extern component P4; // = {PIN_P4, INA219_WE(P4_INA_ADDR), FS_C1};
+extern component V1; // = {PIN_V1, INA219_WE(V1_INA_ADDR), FS_C5};
+extern component V2; // = {PIN_V2, INA219_WE(V2_INA_ADDR), FS_C5};
+extern component V3; // = {PIN_V3, INA219_WE(V3_INA_ADDR), FS_C5};
 
-component pumps[] = {P1, P2, P3, P4};
-component valves[] = {V1, V2, V3};
+// component pumps[] = {P1, P2, P3, P4};
+// component valves[] = {V1, V2, V3};
 
-pressure_sensor C1_PS = {7, DEFAULT_BMP280_ADDR, "C1"};
-pressure_sensor C2_PS = {6, DEFAULT_BMP280_ADDR, "C2"};
-pressure_sensor C3_PS = {5, DEFAULT_BMP280_ADDR, "C3"};
-pressure_sensor C4_PS = {4, DEFAULT_BMP280_ADDR, "C4"};
-pressure_sensor C5_PS = {3, DEFAULT_BMP280_ADDR, "C5"};
-pressure_sensor REFERENCE_PS = {3, ALT_BMP280_ADDR, "REF"};
+extern pressure_sensor C1_PS; // = {7, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C1"};
+extern pressure_sensor C2_PS; // = {6, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C2"};
+extern pressure_sensor C3_PS; // = {5, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C3"};
+extern pressure_sensor C4_PS; // = {4, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C4"};
+extern pressure_sensor C5_PS; // = {3, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C5"};
+extern pressure_sensor REFERENCE_PS; // = {3, ALT_BMP280_ADDR, BMP280_DEV(), "REF"};
 
-pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS, REFERENCE_PS};
+// extern pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS, REFERENCE_PS};
+
+#endif
