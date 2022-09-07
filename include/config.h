@@ -62,6 +62,8 @@ typedef struct {
     uint8_t TCA_SLOT;
     uint8_t I2C_ADDR;
     BMP280_DEV device;
+    int idx;
+    uint8_t FS_PIN;
     char container[4];
 } pressure_sensor;
 

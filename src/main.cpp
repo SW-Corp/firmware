@@ -5,10 +5,13 @@
 #include <ErriezSerialTerminal.h>
 #include "firmware.h"
 
+float pressures[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
 char newlineChar = '\n';
 char delimiterChar = ' ';
 
 SerialTerminal term(newlineChar, delimiterChar);
+
 
 void unknownCommand(const char* command) {
   Serial.print(F(">Unknown command: "));
@@ -26,14 +29,14 @@ component V3 = {"V3", PIN_V3, INA219_WE(V3_INA_ADDR), FS_C5};
 component pumps[] = {P1, P2, P3, P4};
 component valves[] = {V1, V2, V3};
 
-pressure_sensor C1_PS = {7, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C1"};
-pressure_sensor C2_PS = {6, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C2"};
-pressure_sensor C3_PS = {5, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C3"};
-pressure_sensor C4_PS = {4, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C4"};
-pressure_sensor C5_PS = {3, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C5"};
-pressure_sensor REFERENCE_PS = {3, ALT_BMP280_ADDR, BMP280_DEV(), "REF"};
+pressure_sensor C1_PS = {7, DEFAULT_BMP280_ADDR, BMP280_DEV(), 0, FS_C1, "C1"};
+pressure_sensor C2_PS = {6, DEFAULT_BMP280_ADDR, BMP280_DEV(), 1, FS_C2, "C2"};
+pressure_sensor C3_PS = {5, DEFAULT_BMP280_ADDR, BMP280_DEV(), 2, FS_C3, "C3"};
+pressure_sensor C4_PS = {4, DEFAULT_BMP280_ADDR, BMP280_DEV(), 3, FS_C4, "C4"};
+pressure_sensor C5_PS = {3, DEFAULT_BMP280_ADDR, BMP280_DEV(), 4, FS_C5, "C5"};
+pressure_sensor REFERENCE_PS = {3, ALT_BMP280_ADDR, BMP280_DEV(), 5, FS_C5, "REF"};
 
-pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS, REFERENCE_PS};
+pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS}; //, REFERENCE_PS};
 
 uint8_t tca_select(uint8_t slot) {
   Wire.beginTransmission(TCA_ADDR);
@@ -41,18 +44,74 @@ uint8_t tca_select(uint8_t slot) {
   return Wire.endTransmission();
 }
 
-void report_status() {
-  Serial.println(F("OK"));
+void reportContainer(uint8_t id) {
+
+  Serial.print(F("$"));
+  Serial.print(pressure_sensors[id].container);
+  Serial.print(F(" "));
+  Serial.print(digitalRead(pressure_sensors[id].FS_PIN));
+  Serial.print(F(" "));
+  Serial.println(pressures[id]); //pressures[pressure_sensors[id].idx]);
 }
 
+void reportComponent(component* comp) {
+  Serial.print(F("$"));
+  Serial.print(comp->id);
+  Serial.print(F(" "));
+  Serial.print(comp->INA_SENSOR.getCurrent_mA());
+  Serial.print(F(" "));
+  Serial.println(comp->INA_SENSOR.getBusVoltage_V()+(comp->INA_SENSOR.getShuntVoltage_mV()/1000));
+}
+
+void report_status() {
+  for (uint8_t i=0; i<5; i++) {
+    reportContainer(i);
+  }
+  for (uint8_t i=0; i<4; i++) {
+    reportComponent(&pumps[i]);
+  }
+  for (uint8_t i=0; i<3; i++) {
+    reportComponent(&valves[i]);
+  }
+}
+
+// We assume that relay board uses low-level trigger logic.
+// TODO: That logic should be configurable from config.h
 void set_device() {
   char* device = term.getNext();
   char* newState = term.getNext();
+  uint8_t newLogicState = HIGH; // assume that default state is "turned off"
 
   if (device == NULL || newState == NULL ) {
     Serial.println(">Invalid command");
     return;
   }
+
+  if (!strcmp_P(newState, PSTR("ON"))) {
+    newLogicState = LOW;
+  }
+
+  if (device[0]=='P') {
+    for (uint8_t i=0; i<4; i++) {
+      if (!strcmp(pumps[i].id, device)) {
+        // found requested pump
+        digitalWrite(pumps[i].AC_PIN, newLogicState);
+        Serial.println(F(">OK"));
+        return;
+      }
+    }
+  } else if (device[0]=='V') {
+    for (uint8_t i=0; i<3; i++) {
+      if (!strcmp(valves[i].id, device)) {
+        // found requested valve
+        digitalWrite(valves[i].AC_PIN, newLogicState);
+        Serial.println(F(">OK"));
+        return;
+      }
+    }
+  }
+  
+  Serial.println(F(">INVALID DEVICE"));
 
 }
 
@@ -121,23 +180,28 @@ uint8_t init_INA_sensors() {
 
 uint8_t init_BMP_sensors() {
 
-  for (uint8_t i=0; i<6; i++) {
+  for (uint8_t i=0; i<5; i++) { // remember to set to 6 with ref sensor
     if (tca_select(pressure_sensors[i].TCA_SLOT)) {
       Serial.println(">TCA9548 FAIL");
       return 1;
     }    
-    if (!pressure_sensors[i].device.begin(pressure_sensors[i].I2C_ADDR)) {
+    if (!pressure_sensors[i].device.begin(FORCED_MODE, pressure_sensors[i].I2C_ADDR)) {
       Serial.print(">BMP280 ");
       Serial.print(pressure_sensors[i].container);
       Serial.println(" INIT FAIL");
       return 1;
     }
+    // pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_2000MS);
+    // pressure_sensors[i].device.startNormalConversion();
   }
 
+  Serial.println(F(">BMP280 OK"));
   return 0;
 }
 
 void setup() {
+  // cli();
+
   setup_pins();
   Wire.begin();
   Serial.begin(BAUD_RATE);
@@ -161,8 +225,101 @@ void setup() {
     while(1);
   }
 
+
+  
+  /*
+  //set timer1 interrupt at 1Hz
+  TCCR1A = 0;// set entire TCCR1A register to 0
+  TCCR1B = 0;// same for TCCR1B
+  TCNT1  = 0;//initialize counter value to 0
+  // set compare match register for 1hz increments
+  OCR1A = 15624;// = (16*10^6) / (1*1024) - 1 (must be <65536)
+  // turn on CTC mode
+  TCCR1B |= (1 << WGM12);
+  // Set CS10 and CS12 bits for 1024 prescaler
+  TCCR1B |= (1 << CS12) | (1 << CS10);  
+  // enable timer compare interrupt
+  TIMSK1 |= (1 << OCIE1A);
+  */
+  
+  // sei();
+  
+  // sei(); 
 }
+
+float temp, pres, alt;
+uint8_t current_sensor_id = 0;
 
 void loop() {
   term.readSerial();
+  
+  tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
+  delay(1);
+  if(pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
+      pressures[current_sensor_id] = pres;
+  }
+  delay(1);
+  tca_select(pressure_sensors[1].TCA_SLOT);
+  delay(1);
+  if(pressure_sensors[1].device.getMeasurements(temp, pres, alt)) {
+      pressures[1] = pres;
+  }
+  delay(1);
+  
+  tca_select(pressure_sensors[3].TCA_SLOT);
+  delay(1);
+  if(pressure_sensors[3].device.getMeasurements(temp, pres, alt)) {
+      pressures[3] = pres;
+  }
+  delay(1);
+  tca_select(pressure_sensors[2].TCA_SLOT);
+  delay(1);
+  if(pressure_sensors[2].device.getMeasurements(temp, pres, alt)) {
+      pressures[2] = pres;
+  }
+  delay(1);
+  tca_select(pressure_sensors[4].TCA_SLOT);
+  delay(1);
+  if(pressure_sensors[4].device.getMeasurements(temp, pres, alt)) {
+      pressures[4] = pres;
+  }
+  delay(1);
+  /*
+  if (current_sensor_id==4) {
+    current_sensor_id = 0;
+  } else {
+    current_sensor_id++;
+  }
+  */
+
+  /*
+  for (uint8_t j=0; j<5; j++) {
+    float temp, pres, alt;
+    tca_select(pressure_sensors[j].TCA_SLOT);
+    // Serial.print("Analyzing ");
+    // Serial.println(i);
+    // pressure_sensors[i].device.startForcedConversion();
+    if(pressure_sensors[j].device.getMeasurements(temp, pres, alt)) {
+      pressures[j] = pres;
+    }
+  }
+  delay(5);
+  tca_select(pressure_sensors[0].TCA_SLOT);
+  if (pressure_sensors[0].device.getMeasurements(temp1, pres1, alt1)) {
+    pressures[0] = pres1;
+  }
+  delay(5);
+  */
 }
+
+/*
+ISR(TIMER1_COMPA_vect){//timer1 interrupt 1Hz toggles pin 13 (LED)
+//generates pulse wave of frequency 1Hz/2 = 0.5kHz (takes two cycles for full wave- toggle high then toggle low)
+  tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
+  if (pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
+    pressures[current_sensor_id] = pres;
+  }
+
+  current_sensor_id = current_sensor_id==4? 0 : current_sensor_id+1;
+}
+*/
