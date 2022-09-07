@@ -1,15 +1,12 @@
 #ifndef config_h
 #define config_h
 
-#include <avr/io.h>
-#include <avr/pgmspace.h>
-#include <avr/interrupt.h>
-#include <avr/wdt.h>
-
 #include <INA219_WE.h>
 #include <BMP280_DEV.h>
 
 #define BAUD_RATE 115200
+
+#define DEBUG 1
 
 // Define serial port pins and interrupt vectors.
 #define SERIAL_RX     USART_RX_vect
@@ -55,6 +52,7 @@
 #define V3_INA_ADDR 0x46
 
 typedef struct  {
+    const char id[3];
     uint8_t AC_PIN; // pin for automatic control
     INA219_WE INA_SENSOR;     
     uint8_t CORRESPONDING_FS;
@@ -67,33 +65,28 @@ typedef struct {
     char container[4];
 } pressure_sensor;
 
-typedef struct status {
-    uint8_t code;
-    char message[22];
-} status_t;
-
 /*
  * Components definitions
  */
 
-extern component P1; // = {PIN_P1, INA219_WE(P1_INA_ADDR), FS_C2};
-extern component P2; // = {PIN_P2, INA219_WE(P2_INA_ADDR), FS_C3};
-extern component P3; // = {PIN_P3, INA219_WE(P3_INA_ADDR), FS_C4};
-extern component P4; // = {PIN_P4, INA219_WE(P4_INA_ADDR), FS_C1};
-extern component V1; // = {PIN_V1, INA219_WE(V1_INA_ADDR), FS_C5};
-extern component V2; // = {PIN_V2, INA219_WE(V2_INA_ADDR), FS_C5};
-extern component V3; // = {PIN_V3, INA219_WE(V3_INA_ADDR), FS_C5};
+extern component P1;
+extern component P2;
+extern component P3;
+extern component P4;
+extern component V1;
+extern component V2;
+extern component V3;
 
-// component pumps[] = {P1, P2, P3, P4};
-// component valves[] = {V1, V2, V3};
+extern component pumps[];
+extern component valves[];
 
-extern pressure_sensor C1_PS; // = {7, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C1"};
-extern pressure_sensor C2_PS; // = {6, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C2"};
-extern pressure_sensor C3_PS; // = {5, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C3"};
-extern pressure_sensor C4_PS; // = {4, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C4"};
-extern pressure_sensor C5_PS; // = {3, DEFAULT_BMP280_ADDR, BMP280_DEV(), "C5"};
-extern pressure_sensor REFERENCE_PS; // = {3, ALT_BMP280_ADDR, BMP280_DEV(), "REF"};
+extern pressure_sensor C1_PS;
+extern pressure_sensor C2_PS;
+extern pressure_sensor C3_PS;
+extern pressure_sensor C4_PS;
+extern pressure_sensor C5_PS;
+extern pressure_sensor REFERENCE_PS;
 
-// extern pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS, REFERENCE_PS};
+extern pressure_sensor pressure_sensors[];
 
 #endif
