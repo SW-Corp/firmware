@@ -185,14 +185,14 @@ uint8_t init_BMP_sensors() {
       Serial.println(">TCA9548 FAIL");
       return 1;
     }    
-    if (!pressure_sensors[i].device.begin(FORCED_MODE, pressure_sensors[i].I2C_ADDR)) {
+    if (!pressure_sensors[i].device.begin(pressure_sensors[i].I2C_ADDR)) {
       Serial.print(">BMP280 ");
       Serial.print(pressure_sensors[i].container);
       Serial.println(" INIT FAIL");
       return 1;
     }
-    // pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_2000MS);
-    // pressure_sensors[i].device.startNormalConversion();
+    pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_05MS);
+    pressure_sensors[i].device.startNormalConversion();
   }
 
   Serial.println(F(">BMP280 OK"));
@@ -225,26 +225,6 @@ void setup() {
     while(1);
   }
 
-
-  
-  /*
-  //set timer1 interrupt at 1Hz
-  TCCR1A = 0;// set entire TCCR1A register to 0
-  TCCR1B = 0;// same for TCCR1B
-  TCNT1  = 0;//initialize counter value to 0
-  // set compare match register for 1hz increments
-  OCR1A = 15624;// = (16*10^6) / (1*1024) - 1 (must be <65536)
-  // turn on CTC mode
-  TCCR1B |= (1 << WGM12);
-  // Set CS10 and CS12 bits for 1024 prescaler
-  TCCR1B |= (1 << CS12) | (1 << CS10);  
-  // enable timer compare interrupt
-  TIMSK1 |= (1 << OCIE1A);
-  */
-  
-  // sei();
-  
-  // sei(); 
 }
 
 float temp, pres, alt;
@@ -255,11 +235,13 @@ void loop() {
   
   tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
   delay(1);
+  // pressure_sensors[current_sensor_id].device.startForcedConversion();
   if(pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
       pressures[current_sensor_id] = pres;
   }
   delay(1);
   tca_select(pressure_sensors[1].TCA_SLOT);
+  // pressure_sensors[1].device.startForcedConversion();
   delay(1);
   if(pressure_sensors[1].device.getMeasurements(temp, pres, alt)) {
       pressures[1] = pres;
@@ -267,18 +249,21 @@ void loop() {
   delay(1);
   
   tca_select(pressure_sensors[3].TCA_SLOT);
+  // pressure_sensors[3].device.startForcedConversion();
   delay(1);
   if(pressure_sensors[3].device.getMeasurements(temp, pres, alt)) {
       pressures[3] = pres;
   }
   delay(1);
   tca_select(pressure_sensors[2].TCA_SLOT);
+  // pressure_sensors[2].device.startForcedConversion();
   delay(1);
   if(pressure_sensors[2].device.getMeasurements(temp, pres, alt)) {
       pressures[2] = pres;
   }
   delay(1);
   tca_select(pressure_sensors[4].TCA_SLOT);
+  // pressure_sensors[4].device.startForcedConversion();
   delay(1);
   if(pressure_sensors[4].device.getMeasurements(temp, pres, alt)) {
       pressures[4] = pres;
