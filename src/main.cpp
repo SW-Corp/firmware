@@ -235,76 +235,10 @@ void loop() {
   
   tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
   delay(1);
-  // pressure_sensors[current_sensor_id].device.startForcedConversion();
-  if(pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
-      pressures[current_sensor_id] = pres;
-  }
-  delay(1);
-  tca_select(pressure_sensors[1].TCA_SLOT);
-  // pressure_sensors[1].device.startForcedConversion();
-  delay(1);
-  if(pressure_sensors[1].device.getMeasurements(temp, pres, alt)) {
-      pressures[1] = pres;
-  }
-  delay(1);
-  
-  tca_select(pressure_sensors[3].TCA_SLOT);
-  // pressure_sensors[3].device.startForcedConversion();
-  delay(1);
-  if(pressure_sensors[3].device.getMeasurements(temp, pres, alt)) {
-      pressures[3] = pres;
-  }
-  delay(1);
-  tca_select(pressure_sensors[2].TCA_SLOT);
-  // pressure_sensors[2].device.startForcedConversion();
-  delay(1);
-  if(pressure_sensors[2].device.getMeasurements(temp, pres, alt)) {
-      pressures[2] = pres;
-  }
-  delay(1);
-  tca_select(pressure_sensors[4].TCA_SLOT);
-  // pressure_sensors[4].device.startForcedConversion();
-  delay(1);
-  if(pressure_sensors[4].device.getMeasurements(temp, pres, alt)) {
-      pressures[4] = pres;
-  }
-  delay(1);
-  /*
-  if (current_sensor_id==4) {
-    current_sensor_id = 0;
-  } else {
-    current_sensor_id++;
-  }
-  */
-
-  /*
-  for (uint8_t j=0; j<5; j++) {
-    float temp, pres, alt;
-    tca_select(pressure_sensors[j].TCA_SLOT);
-    // Serial.print("Analyzing ");
-    // Serial.println(i);
-    // pressure_sensors[i].device.startForcedConversion();
-    if(pressure_sensors[j].device.getMeasurements(temp, pres, alt)) {
-      pressures[j] = pres;
-    }
-  }
-  delay(5);
-  tca_select(pressure_sensors[0].TCA_SLOT);
-  if (pressure_sensors[0].device.getMeasurements(temp1, pres1, alt1)) {
-    pressures[0] = pres1;
-  }
-  delay(5);
-  */
-}
-
-/*
-ISR(TIMER1_COMPA_vect){//timer1 interrupt 1Hz toggles pin 13 (LED)
-//generates pulse wave of frequency 1Hz/2 = 0.5kHz (takes two cycles for full wave- toggle high then toggle low)
-  tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
   if (pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
     pressures[current_sensor_id] = pres;
   }
+  delay(2);
+  current_sensor_id = current_sensor_id>3 ? 0 : current_sensor_id+1;
 
-  current_sensor_id = current_sensor_id==4? 0 : current_sensor_id+1;
 }
-*/
