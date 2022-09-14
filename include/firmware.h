@@ -10,5 +10,7 @@
 #include <stdint.h>
 
 #include "config.h"
+#include "serial.h"
+#include "print.h"
 
 #endif
