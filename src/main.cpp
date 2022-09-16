@@ -10,11 +10,6 @@ char newlineChar = '\n';
 char delimiterChar = ' ';
 
 
-// void unknownCommand(const char* command) {
-  // Serial.print(F(">Unknown command: "));
-  // Serial.println(command);
-// }
-
 component P1 = {"P1", PIN_P1, INA219_WE(P1_INA_ADDR), FS_C2};
 component P2 = {"P2", PIN_P2, INA219_WE(P2_INA_ADDR), FS_C3};
 component P3 = {"P3", PIN_P3, INA219_WE(P3_INA_ADDR), FS_C4};
@@ -166,12 +161,9 @@ uint8_t init_INA_sensors() {
 
   for (uint8_t i=0; i<4; i++) {
     if (!pumps[i].INA_SENSOR.init()) {
-      // Serial.print(F(">INA219 P"));
       printPgmString(PSTR(">INA219 P"));
       print_uint8_base10(i+1);
       printPgmString(PSTR(" INIT FAIL\r\n"));
-      // Serial.print(i+1);
-      // Serial.println(F(" INIT FAIL"));
       return 1;
     }
   }
@@ -181,14 +173,10 @@ uint8_t init_INA_sensors() {
       printPgmString(PSTR(">INA219 V"));
       print_uint8_base10(i+1);
       printPgmString(PSTR(" INIT FAIL\r\n"));
-      // Serial.print(F(">V"));
-      // Serial.print(i+1);
-      // Serial.println(F(" INIT FAIL"));
       return 1;
     }
   }
 
-  // Serial.println(F(">INA219 OK"));
   printPgmString(PSTR(">INA219 OK\r\n"));
   return 0;
 }
@@ -197,7 +185,6 @@ uint8_t init_BMP_sensors() {
 
   for (uint8_t i=0; i<6; i++) { // remember to set to 6 with ref sensor
     if (tca_select(pressure_sensors[i].TCA_SLOT)) {
-      // Serial.println(">TCA9548 FAIL");
       printPgmString(PSTR(">TCA9548 FAIL\r\n"));
       return 1;
     }    
@@ -205,29 +192,23 @@ uint8_t init_BMP_sensors() {
       printPgmString(PSTR(">BMP280"));
       printString(pressure_sensors[i].container);
       printPgmString(PSTR(" INIT FAIL\r\n"));
-      // Serial.print(">BMP280 ");
-      // Serial.print(pressure_sensors[i].container);
-      // Serial.println(" INIT FAIL");
       return 1;
     }
     pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_05MS);
     pressure_sensors[i].device.startNormalConversion();
   }
 
-  // Serial.println(F(">BMP280 OK"));
   printPgmString(PSTR(">BMP280 OK\r\n"));
   return 0;
 }
 
 void setup() {
-  // cli();
 
   setup_pins();
   Wire.begin();
   serial_init();
   serial_reset_read_buffer();
-  // Serial.begin(BAUD_RATE);
-  // Serial.println(F("Water Treatment Lab Controller v1.0"));
+
   printPgmString(PSTR("Water Treatment Lab Controller v1.0\r\n"));
 
   init_INA_sensors();
