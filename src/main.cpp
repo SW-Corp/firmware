@@ -36,7 +36,10 @@ uint8_t tca_select(uint8_t slot) {
   return Wire.endTransmission();
 }
 
+float temp, pres, alt;
+
 void reportContainer(uint8_t id) {
+
   printPgmString(PSTR("$"));
   printString(pressure_sensors[id].container);
   printPgmString(PSTR(" "));
@@ -44,6 +47,7 @@ void reportContainer(uint8_t id) {
   printPgmString(PSTR(" "));
   printFloat(pressures[id], 2); 
   printPgmString(PSTR("\r\n"));
+
 }
 
 void reportComponent(component* comp) {
@@ -56,8 +60,24 @@ void reportComponent(component* comp) {
   printPgmString(PSTR("\r\n"));
 }
 
+void ask_sensors() {
+
+  for (byte i=0; i<6; i++) {
+    tca_select(pressure_sensors[i].TCA_SLOT);
+    delay(1);
+    while (!pressure_sensors[i].device.getMeasurements(temp, pres, alt)); 
+    pressures[i] = pres;
+    
+    delay(2);
+  }
+
+}
+
 void report_status() {
-  for (uint8_t i=0; i<5; i++) {
+
+  ask_sensors();
+
+  for (uint8_t i=0; i<6; i++) {
     reportContainer(i);
   }
   for (uint8_t i=0; i<4; i++) {
@@ -194,6 +214,8 @@ uint8_t init_BMP_sensors() {
       printPgmString(PSTR(" INIT FAIL\r\n"));
       return 1;
     }
+    // pressure_sensors[i].device.setPresOversampling(OVERSAMPLING_X4);
+    // pressure_sensors[i].device.setIIRFilter(IIR_FILTER_4);
     pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_05MS);
     pressure_sensors[i].device.startNormalConversion();
   }
@@ -217,7 +239,6 @@ void setup() {
 
 }
 
-float temp, pres, alt;
 uint8_t current_sensor_id = 0;
 
 uint8_t char_counter = 0;
@@ -226,7 +247,9 @@ uint8_t c;
 
 void loop() {
 
+  
   while((c = serial_read()) != SERIAL_NO_DATA) {
+
     if ((c == '\n') || (c == '\r')) { // End of line reached
         line[char_counter] = 0; // Set string termination character.
         execute_line(line); // Line is complete. Execute it!
@@ -239,15 +262,14 @@ void loop() {
       line[char_counter++] = c;
     }
   }
-  
+
   /*
-  tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
-  delay(1);
-  if (pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
-    pressures[current_sensor_id] = pres;
+  delay(100);
+
+  if (current_sensor_id==5) {
+    report_status();
+    delay(100);
   }
-  delay(2);
-  current_sensor_id = current_sensor_id>3 ? 0 : current_sensor_id+1;
   */
 
 }
