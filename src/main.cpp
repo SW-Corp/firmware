@@ -42,22 +42,23 @@ uint8_t tca_select(uint8_t slot) {
 }
 
 void reportContainer(uint8_t id) {
-
-  // Serial.print(F("$"));
-  // Serial.print(pressure_sensors[id].container);
-  // Serial.print(F(" "));
-  // Serial.print(digitalRead(pressure_sensors[id].FS_PIN));
-  // Serial.print(F(" "));
-  // Serial.println(pressures[id]); //pressures[pressure_sensors[id].idx]);
+  printPgmString(PSTR("$"));
+  printString(pressure_sensors[id].container);
+  printPgmString(PSTR(" "));
+  printInteger(digitalRead(pressure_sensors[id].FS_PIN));
+  printPgmString(PSTR(" "));
+  printFloat(pressures[id], 2); 
+  printPgmString(PSTR("\r\n"));
 }
 
 void reportComponent(component* comp) {
-  // Serial.print(F("$"));
-  // Serial.print(comp->id);
-  // Serial.print(F(" "));
-  // Serial.print(comp->INA_SENSOR.getCurrent_mA());
-  // Serial.print(F(" "));
-  // Serial.println(comp->INA_SENSOR.getBusVoltage_V()+(comp->INA_SENSOR.getShuntVoltage_mV()/1000));
+  printPgmString(PSTR("$"));
+  printString(comp->id);
+  printPgmString(PSTR(" "));
+  printFloat(comp->INA_SENSOR.getCurrent_mA(), 2);
+  printPgmString(PSTR(" "));
+  printFloat(comp->INA_SENSOR.getBusVoltage_V()+(comp->INA_SENSOR.getShuntVoltage_mV()/1000), 2);
+  printPgmString(PSTR("\r\n"));
 }
 
 void report_status() {
@@ -115,7 +116,7 @@ void set_device() {
 void execute_line(char* line) {
 
   if (line[0]=='?') {
-    printPgmString(PSTR("Reporting status.\r\n"));
+    report_status();
   } else {
 
   }
@@ -194,7 +195,7 @@ uint8_t init_INA_sensors() {
 
 uint8_t init_BMP_sensors() {
 
-  for (uint8_t i=0; i<5; i++) { // remember to set to 6 with ref sensor
+  for (uint8_t i=0; i<6; i++) { // remember to set to 6 with ref sensor
     if (tca_select(pressure_sensors[i].TCA_SLOT)) {
       // Serial.println(">TCA9548 FAIL");
       printPgmString(PSTR(">TCA9548 FAIL\r\n"));
@@ -214,7 +215,7 @@ uint8_t init_BMP_sensors() {
   }
 
   // Serial.println(F(">BMP280 OK"));
-  printPgmString(PSTR(">BMP280 OK"));
+  printPgmString(PSTR(">BMP280 OK\r\n"));
   return 0;
 }
 
