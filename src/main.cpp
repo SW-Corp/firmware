@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <INA219_WE.h> // TODO: test that library
 #include <BMP280_DEV.h>  
-#include <ErriezSerialTerminal.h>
 #include "firmware.h"
 
 float pressures[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -10,13 +9,6 @@ float pressures[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 char newlineChar = '\n';
 char delimiterChar = ' ';
 
-SerialTerminal term(newlineChar, delimiterChar);
-
-
-void unknownCommand(const char* command) {
-  Serial.print(F(">Unknown command: "));
-  Serial.println(command);
-}
 
 component P1 = {"P1", PIN_P1, INA219_WE(P1_INA_ADDR), FS_C2};
 component P2 = {"P2", PIN_P2, INA219_WE(P2_INA_ADDR), FS_C3};
@@ -34,9 +26,9 @@ pressure_sensor C2_PS = {6, DEFAULT_BMP280_ADDR, BMP280_DEV(), 1, FS_C2, "C2"};
 pressure_sensor C3_PS = {5, DEFAULT_BMP280_ADDR, BMP280_DEV(), 2, FS_C3, "C3"};
 pressure_sensor C4_PS = {4, DEFAULT_BMP280_ADDR, BMP280_DEV(), 3, FS_C4, "C4"};
 pressure_sensor C5_PS = {3, DEFAULT_BMP280_ADDR, BMP280_DEV(), 4, FS_C5, "C5"};
-pressure_sensor REFERENCE_PS = {3, ALT_BMP280_ADDR, BMP280_DEV(), 5, FS_C5, "REF"};
+pressure_sensor REFERENCE_PS = {3, ALT_BMP280_ADDR, BMP280_DEV(), 5, FS_C5, "RF"};
 
-pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS}; //, REFERENCE_PS};
+pressure_sensor pressure_sensors[] = {C1_PS, C2_PS, C3_PS, C4_PS, C5_PS, REFERENCE_PS};
 
 uint8_t tca_select(uint8_t slot) {
   Wire.beginTransmission(TCA_ADDR);
@@ -44,27 +36,48 @@ uint8_t tca_select(uint8_t slot) {
   return Wire.endTransmission();
 }
 
+float temp, pres, alt;
+
 void reportContainer(uint8_t id) {
 
-  Serial.print(F("$"));
-  Serial.print(pressure_sensors[id].container);
-  Serial.print(F(" "));
-  Serial.print(digitalRead(pressure_sensors[id].FS_PIN));
-  Serial.print(F(" "));
-  Serial.println(pressures[id]); //pressures[pressure_sensors[id].idx]);
+  printPgmString(PSTR("$"));
+  printString(pressure_sensors[id].container);
+  printPgmString(PSTR(" "));
+  printInteger(digitalRead(pressure_sensors[id].FS_PIN));
+  printPgmString(PSTR(" "));
+  printFloat(pressures[id], 2); 
+  printPgmString(PSTR("\r\n"));
+
 }
 
 void reportComponent(component* comp) {
-  Serial.print(F("$"));
-  Serial.print(comp->id);
-  Serial.print(F(" "));
-  Serial.print(comp->INA_SENSOR.getCurrent_mA());
-  Serial.print(F(" "));
-  Serial.println(comp->INA_SENSOR.getBusVoltage_V()+(comp->INA_SENSOR.getShuntVoltage_mV()/1000));
+  printPgmString(PSTR("$"));
+  printString(comp->id);
+  printPgmString(PSTR(" "));
+  printFloat(comp->INA_SENSOR.getCurrent_mA(), 2);
+  printPgmString(PSTR(" "));
+  printFloat(comp->INA_SENSOR.getBusVoltage_V()+(comp->INA_SENSOR.getShuntVoltage_mV()/1000), 2);
+  printPgmString(PSTR("\r\n"));
+}
+
+void ask_sensors() {
+
+  for (byte i=0; i<6; i++) {
+    tca_select(pressure_sensors[i].TCA_SLOT);
+    delay(1);
+    while (!pressure_sensors[i].device.getMeasurements(temp, pres, alt)); 
+    pressures[i] = pres;
+    
+    delay(2);
+  }
+
 }
 
 void report_status() {
-  for (uint8_t i=0; i<5; i++) {
+
+  ask_sensors();
+
+  for (uint8_t i=0; i<6; i++) {
     reportContainer(i);
   }
   for (uint8_t i=0; i<4; i++) {
@@ -73,17 +86,22 @@ void report_status() {
   for (uint8_t i=0; i<3; i++) {
     reportComponent(&valves[i]);
   }
+
+  printPgmString(PSTR(">REPORT FINISHED\r\n"));
+
 }
 
 // We assume that relay board uses low-level trigger logic.
 // TODO: That logic should be configurable from config.h
-void set_device() {
-  char* device = term.getNext();
-  char* newState = term.getNext();
+void set_device(char* line) {
+  char* device = strtok_r(NULL, " ", &line);
+  char* newState = strtok_r(NULL, " ", &line);
+
   uint8_t newLogicState = HIGH; // assume that default state is "turned off"
 
   if (device == NULL || newState == NULL ) {
-    Serial.println(">Invalid command");
+    // Serial.println(">Invalid command");
+    printPgmString(PSTR(">Invalid command\r\n"));
     return;
   }
 
@@ -96,7 +114,7 @@ void set_device() {
       if (!strcmp(pumps[i].id, device)) {
         // found requested pump
         digitalWrite(pumps[i].AC_PIN, newLogicState);
-        Serial.println(F(">OK"));
+        printPgmString(PSTR("OK\r\n"));
         return;
       }
     }
@@ -105,13 +123,28 @@ void set_device() {
       if (!strcmp(valves[i].id, device)) {
         // found requested valve
         digitalWrite(valves[i].AC_PIN, newLogicState);
-        Serial.println(F(">OK"));
+        printPgmString(PSTR("OK\r\n"));
         return;
       }
     }
   }
-  
-  Serial.println(F(">INVALID DEVICE"));
+
+  printPgmString(PSTR(">INVALID DEVICE\r\n"));
+
+}
+
+void execute_line(char* line) {
+
+  if (line[0]=='?') {
+    report_status();
+  } else if (!strcmp(strtok_r(NULL, " ", &line), "SET")) {
+    set_device(line);
+  }
+  // } else {
+  //   printPgmString(PSTR(">Unknown command\r\n"));
+  //   printString(line);
+  //   printPgmString("\r\n");
+  // }
 
 }
 
@@ -158,87 +191,95 @@ uint8_t init_INA_sensors() {
 
   for (uint8_t i=0; i<4; i++) {
     if (!pumps[i].INA_SENSOR.init()) {
-      Serial.print(F(">INA219 P"));
-      Serial.print(i+1);
-      Serial.println(F(" INIT FAIL"));
+      printPgmString(PSTR(">INA219 P"));
+      print_uint8_base10(i+1);
+      printPgmString(PSTR(" INIT FAIL\r\n"));
       return 1;
     }
   }
 
   for (uint8_t i=0; i<3; i++) {
     if (!valves[i].INA_SENSOR.init()) {
-      Serial.print(F(">V"));
-      Serial.print(i+1);
-      Serial.println(F(" INIT FAIL"));
+      printPgmString(PSTR(">INA219 V"));
+      print_uint8_base10(i+1);
+      printPgmString(PSTR(" INIT FAIL\r\n"));
       return 1;
     }
   }
 
-  Serial.println(F(">INA219 OK"));
+  printPgmString(PSTR(">INA219 OK\r\n"));
   return 0;
 }
 
 uint8_t init_BMP_sensors() {
 
-  for (uint8_t i=0; i<5; i++) { // remember to set to 6 with ref sensor
+  for (uint8_t i=0; i<6; i++) { // remember to set to 6 with ref sensor
     if (tca_select(pressure_sensors[i].TCA_SLOT)) {
-      Serial.println(">TCA9548 FAIL");
+      printPgmString(PSTR(">TCA9548 FAIL\r\n"));
       return 1;
     }    
     if (!pressure_sensors[i].device.begin(pressure_sensors[i].I2C_ADDR)) {
-      Serial.print(">BMP280 ");
-      Serial.print(pressure_sensors[i].container);
-      Serial.println(" INIT FAIL");
+      printPgmString(PSTR(">BMP280"));
+      printString(pressure_sensors[i].container);
+      printPgmString(PSTR(" INIT FAIL\r\n"));
       return 1;
     }
+    // pressure_sensors[i].device.setPresOversampling(OVERSAMPLING_X4);
+    // pressure_sensors[i].device.setIIRFilter(IIR_FILTER_4);
     pressure_sensors[i].device.setTimeStandby(TIME_STANDBY_05MS);
     pressure_sensors[i].device.startNormalConversion();
   }
 
-  Serial.println(F(">BMP280 OK"));
+  printPgmString(PSTR(">BMP280 OK\r\n"));
   return 0;
 }
 
 void setup() {
-  // cli();
 
   setup_pins();
   Wire.begin();
-  Serial.begin(BAUD_RATE);
-  Serial.println(F("Water Treatment Lab Controller v1.0"));
+  serial_init();
+  serial_reset_read_buffer();
 
-  term.setDefaultHandler(unknownCommand);
-  term.setSerialEcho(false);
+  printPgmString(PSTR("Water Treatment Lab Controller v1.0\r\n"));
 
-  term.addCommand("?", report_status);
-  term.addCommand("SET", set_device);
+  init_INA_sensors();
 
-  uint8_t res = init_INA_sensors();
-
-  if (res && !DEBUG) {
-    while(1); // Force user to restart device when one of the INA sensors fails. Skip that in DEBUG mode.
-  }
-
-  res = init_BMP_sensors();
-
-  if (res && !DEBUG) {
-    while(1);
-  }
+  init_BMP_sensors();
 
 }
 
-float temp, pres, alt;
 uint8_t current_sensor_id = 0;
 
+uint8_t char_counter = 0;
+static char line[13];
+uint8_t c;
+
 void loop() {
-  term.readSerial();
+
   
-  tca_select(pressure_sensors[current_sensor_id].TCA_SLOT);
-  delay(1);
-  if (pressure_sensors[current_sensor_id].device.getMeasurements(temp, pres, alt)) {
-    pressures[current_sensor_id] = pres;
+  while((c = serial_read()) != SERIAL_NO_DATA) {
+
+    if ((c == '\n') || (c == '\r')) { // End of line reached - was also c==\r
+        line[char_counter] = 0; // Set string termination character.
+        execute_line(line); // Line is complete. Execute it!
+        char_counter = 0;
+    } else if (char_counter >= 12) {  
+      char_counter = 0;
+    } else if (c >= 'a' && c <= 'z') {
+      line[char_counter++] = c-'a'+'A';
+    } else {
+      line[char_counter++] = c;
+    }
   }
-  delay(2);
-  current_sensor_id = current_sensor_id>3 ? 0 : current_sensor_id+1;
+
+  /*
+  delay(100);
+
+  if (current_sensor_id==5) {
+    report_status();
+    delay(100);
+  }
+  */
 
 }

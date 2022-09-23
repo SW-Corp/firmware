@@ -39,6 +39,8 @@
 #define DEFAULT_BMP280_ADDR 0x76
 #define ALT_BMP280_ADDR 0x77
 
+#define EXEC_RESET bit(4)
+
 /*
  * Definitions of I2C addresses of INA219 modules
  * for real-time measurement of current and voltage of each component
@@ -62,9 +64,9 @@ typedef struct {
     uint8_t TCA_SLOT;
     uint8_t I2C_ADDR;
     BMP280_DEV device;
-    int idx;
+    uint8_t idx;
     uint8_t FS_PIN;
-    char container[4];
+    char container[3];
 } pressure_sensor;
 
 /*
