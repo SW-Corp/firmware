@@ -86,45 +86,50 @@ void report_status() {
   for (uint8_t i=0; i<3; i++) {
     reportComponent(&valves[i]);
   }
+
+  printPgmString(PSTR(">REPORT FINISHED\r\n"));
+
 }
 
 // We assume that relay board uses low-level trigger logic.
 // TODO: That logic should be configurable from config.h
-void set_device() {
-  // char* device = term.getNext();
-  // char* newState = term.getNext();
-  // uint8_t newLogicState = HIGH; // assume that default state is "turned off"
-// 
-  // if (device == NULL || newState == NULL ) {
+void set_device(char* line) {
+  char* device = strtok_r(NULL, " ", &line);
+  char* newState = strtok_r(NULL, " ", &line);
+
+  uint8_t newLogicState = HIGH; // assume that default state is "turned off"
+
+  if (device == NULL || newState == NULL ) {
     // Serial.println(">Invalid command");
-    // return;
-  // }
-// 
-  // if (!strcmp_P(newState, PSTR("ON"))) {
-    // newLogicState = LOW;
-  // }
-// 
-  // if (device[0]=='P') {
-    // for (uint8_t i=0; i<4; i++) {
-      // if (!strcmp(pumps[i].id, device)) {
+    printPgmString(PSTR(">Invalid command\r\n"));
+    return;
+  }
+
+  if (!strcmp_P(newState, PSTR("ON"))) {
+    newLogicState = LOW;
+  }
+
+  if (device[0]=='P') {
+    for (uint8_t i=0; i<4; i++) {
+      if (!strcmp(pumps[i].id, device)) {
         // found requested pump
-        // digitalWrite(pumps[i].AC_PIN, newLogicState);
-        // Serial.println(F(">OK"));
-        // return;
-      // }
-    // }
-  // } else if (device[0]=='V') {
-    // for (uint8_t i=0; i<3; i++) {
-      // if (!strcmp(valves[i].id, device)) {
+        digitalWrite(pumps[i].AC_PIN, newLogicState);
+        printPgmString(PSTR("OK\r\n"));
+        return;
+      }
+    }
+  } else if (device[0]=='V') {
+    for (uint8_t i=0; i<3; i++) {
+      if (!strcmp(valves[i].id, device)) {
         // found requested valve
-        // digitalWrite(valves[i].AC_PIN, newLogicState);
-        // Serial.println(F(">OK"));
-        // return;
-      // }
-    // }
-  // }
-  // 
-  printPgmString(PSTR(">INVALID DEVICE"));
+        digitalWrite(valves[i].AC_PIN, newLogicState);
+        printPgmString(PSTR("OK\r\n"));
+        return;
+      }
+    }
+  }
+
+  printPgmString(PSTR(">INVALID DEVICE\r\n"));
 
 }
 
@@ -132,9 +137,14 @@ void execute_line(char* line) {
 
   if (line[0]=='?') {
     report_status();
-  } else {
-
+  } else if (!strcmp(strtok_r(NULL, " ", &line), "SET")) {
+    set_device(line);
   }
+  // } else {
+  //   printPgmString(PSTR(">Unknown command\r\n"));
+  //   printString(line);
+  //   printPgmString("\r\n");
+  // }
 
 }
 
@@ -250,7 +260,7 @@ void loop() {
   
   while((c = serial_read()) != SERIAL_NO_DATA) {
 
-    if ((c == '\n') || (c == '\r')) { // End of line reached
+    if ((c == '\n') || (c == '\r')) { // End of line reached - was also c==\r
         line[char_counter] = 0; // Set string termination character.
         execute_line(line); // Line is complete. Execute it!
         char_counter = 0;
